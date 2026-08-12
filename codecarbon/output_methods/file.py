@@ -1,4 +1,5 @@
 import csv
+import math
 import os
 from typing import List
 
@@ -9,12 +10,22 @@ from codecarbon.output_methods.emissions_data import EmissionsData, TaskEmission
 
 
 def _as_csv_row(values: dict) -> dict:
-    """Render a data row as strings, with missing values as empty cells."""
-    return {k: ("" if v is None else str(v)) for k, v in values.items()}
+    """Render a data row as strings, with missing values as empty cells.
+
+    NaN is written as an empty cell, the way pandas' ``to_csv`` did, so that a
+    missing measurement does not end up as the literal string "nan".
+    """
+    return {
+        k: ("" if v is None or (isinstance(v, float) and math.isnan(v)) else str(v))
+        for k, v in values.items()
+    }
 
 
 def _write_rows(path: str, fieldnames: list[str], rows: list[dict]) -> None:
     with open(path, "w", newline="") as csv_file:
+        # extrasaction="ignore" is defensive only: a row can never carry a key
+        # outside `fieldnames`, because `out()` backs the file up and rewrites it
+        # from scratch whenever `has_valid_headers()` reports a mismatch.
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
