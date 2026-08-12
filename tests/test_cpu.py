@@ -238,7 +238,12 @@ class TestIntelPowerGadget(unittest.TestCase):
             cpu_details["Cumulative IA Energy_0(mWh)"] = round(
                 cpu_details["Cumulative IA Energy_0(mWh)"], 3
             )
-            self.assertDictEqual(expected_cpu_details, cpu_details)
+            # Compared with a tolerance rather than assertDictEqual: the
+            # values are float means, and pinning one summation order's last
+            # ulp is not a property worth asserting.
+            self.assertEqual(sorted(expected_cpu_details), sorted(cpu_details))
+            for key, expected in expected_cpu_details.items():
+                self.assertAlmostEqual(expected, cpu_details[key], places=9)
 
     def test_setup_cli_uses_windows_backup_when_primary_missing(self):
         with (

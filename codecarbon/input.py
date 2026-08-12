@@ -8,14 +8,12 @@ to keep `import codecarbon` fast for measurement startup.
 from __future__ import annotations
 
 import atexit
+import csv
 import json
 from contextlib import ExitStack
 from importlib.resources import as_file as importlib_resources_as_file
 from importlib.resources import files as importlib_resources_files
-from typing import TYPE_CHECKING, Any, Dict
-
-if TYPE_CHECKING:
-    import pandas as pd
+from typing import Any, Dict
 
 _CACHE: Dict[str, Any] = {}
 _MODULE_NAME = "codecarbon"
@@ -30,6 +28,27 @@ def _get_resource_path(filepath: str):
     return path
 
 
+def _read_csv(path, numeric_columns=()) -> list[dict[str, Any]]:
+    """
+    Read a bundled reference CSV into a list of row dicts.
+
+    ``utf-8-sig`` is required: ``data/cloud/impact.csv`` starts with a UTF-8 BOM,
+    which would otherwise end up glued to the first column name. Empty fields
+    become ``None`` (not ``""``) so callers can test them with ``is None``, and
+    the columns listed in ``numeric_columns`` are coerced to ``float`` at this
+    boundary rather than being left as strings for callers to guess about.
+    """
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        rows = []
+        for raw in csv.DictReader(f):
+            row: dict[str, Any] = {k: (v if v else None) for k, v in raw.items()}
+            for column in numeric_columns:
+                if row.get(column) is not None:
+                    row[column] = float(row[column])
+            rows.append(row)
+        return rows
+
+
 def _load_static_data() -> None:
     """
     Load all static reference data at module import.
@@ -37,8 +56,6 @@ def _load_static_data() -> None:
     Called once when codecarbon is imported. All data loaded here
     is immutable and shared across all tracker instances.
     """
-    import pandas as pd
-
     # Global energy mix - used for emissions calculations
     path = _get_resource_path("data/private_infra/global_energy_mix.json")
     with open(path) as f:
@@ -46,7 +63,9 @@ def _load_static_data() -> None:
 
     # Cloud emissions data
     path = _get_resource_path("data/cloud/impact.csv")
-    _CACHE["cloud_emissions"] = pd.read_csv(path)
+    _CACHE["cloud_emissions"] = _read_csv(
+        path, numeric_columns=("impact", "offsetRatio")
+    )
 
     # Carbon intensity per source
     path = _get_resource_path("data/private_infra/carbon_intensity_per_source.json")
@@ -55,7 +74,10 @@ def _load_static_data() -> None:
 
     # CPU power data
     path = _get_resource_path("data/hardware/cpu_power.csv")
-    _CACHE["cpu_power"] = pd.read_csv(path)
+    # TDP is deliberately left as text: a handful of rows hold malformed values
+    # such as "27.29.5", and coercing here would fail the whole load instead of
+    # only the lookup for those CPUs (which is what happens today).
+    _CACHE["cpu_power"] = _read_csv(path)
 
     # Nordic country energy mix - used for emissions calculations
     path = _get_resource_path("data/private_infra/nordic_emissions.json")
@@ -147,13 +169,26 @@ class DataSource:
         _ensure_static_data_loaded()
         return _CACHE["global_energy_mix"]
 
-    def get_cloud_emissions_data(self) -> pd.DataFrame:
+    def get_cloud_emissions_data(self) -> list[dict[str, Any]]:
         """
-        Returns Cloud Regions Impact Data.
+        Returns Cloud Regions Impact Data, as one dict per row.
         Data is loaded on first access and cached for all tracker instances.
         """
         _ensure_static_data_loaded()
         return _CACHE["cloud_emissions"]
+
+    def find_cloud_region(self, provider: str, region: str) -> dict[str, Any] | None:
+        """
+        Returns the cloud impact row for a provider/region pair, or None.
+        """
+        return next(
+            (
+                row
+                for row in self.get_cloud_emissions_data()
+                if row["provider"] == provider and row["region"] == region
+            ),
+            None,
+        )
 
     def get_country_emissions_data(self, country_iso_code: str) -> Dict:
         """
@@ -195,9 +230,9 @@ class DataSource:
         _ensure_static_data_loaded()
         return _CACHE["carbon_intensity_per_source"]
 
-    def get_cpu_power_data(self) -> pd.DataFrame:
+    def get_cpu_power_data(self) -> list[dict[str, Any]]:
         """
-        Returns CPU power Data.
+        Returns CPU power Data, as one dict per row.
         Data is loaded on first access and cached for all tracker instances.
         """
         _ensure_static_data_loaded()
