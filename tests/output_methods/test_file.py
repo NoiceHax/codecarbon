@@ -88,18 +88,21 @@ class TestFileOutput(unittest.TestCase):
 
         self.assertTrue(file_output.has_valid_headers(self.emissions_data))
 
-    def test_nan_is_written_as_an_empty_cell(self):
-        """NaN must round-trip as a missing value, not as the string "nan"."""
-        file_output = FileOutput("test.csv", self.temp_dir)
-        self.emissions_data.cpu_power = float("nan")
-        file_output.out(self.emissions_data, None)
+    def test_non_finite_values_are_written_as_empty_cells(self):
+        """NaN and infinities must round-trip as missing, not as "nan"/"inf"."""
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value):
+                file_output = FileOutput("test.csv", self.temp_dir)
+                self.emissions_data.cpu_power = value
+                file_output.out(self.emissions_data, None)
 
-        with open(file_output.save_file_path) as csv_file:
-            row = next(csv.DictReader(csv_file))
-        self.assertEqual(row["cpu_power"], "")
-        self.assertTrue(
-            pd.isna(pd.read_csv(file_output.save_file_path)["cpu_power"][0])
-        )
+                with open(file_output.save_file_path) as csv_file:
+                    row = next(csv.DictReader(csv_file))
+                self.assertEqual(row["cpu_power"], "")
+                self.assertTrue(
+                    pd.isna(pd.read_csv(file_output.save_file_path)["cpu_power"][0])
+                )
+                os.remove(file_output.save_file_path)
 
     def test_has_valid_headers_failure(self):
         file_output = FileOutput("test.csv", self.temp_dir)

@@ -12,11 +12,18 @@ from codecarbon.output_methods.emissions_data import EmissionsData, TaskEmission
 def _as_csv_row(values: dict) -> dict:
     """Render a data row as strings, with missing values as empty cells.
 
-    NaN is written as an empty cell, the way pandas' ``to_csv`` did, so that a
-    missing measurement does not end up as the literal string "nan".
+    Any non-finite float (NaN, +inf, -inf) is written as an empty cell. NaN
+    matches what pandas' ``to_csv`` did; infinities are a deliberate
+    divergence (``to_csv`` wrote the literal "inf") because an infinite
+    energy or emissions value is not a real measurement, and an empty cell
+    reads back as missing instead of poisoning downstream arithmetic.
     """
     return {
-        k: ("" if v is None or (isinstance(v, float) and math.isnan(v)) else str(v))
+        k: (
+            ""
+            if v is None or (isinstance(v, float) and not math.isfinite(v))
+            else str(v)
+        )
         for k, v in values.items()
     }
 
