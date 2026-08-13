@@ -49,6 +49,20 @@ def _read_csv(path, numeric_columns=()) -> list[dict[str, Any]]:
         return rows
 
 
+def _as_dataframe(rows: list[dict[str, Any]]):
+    """
+    Wrap rows in a DataFrame if pandas is available, else return them as-is.
+
+    pandas is an optional dependency now, so the import has to stay inside the
+    function: nothing on the default install path may import it at module level.
+    """
+    try:
+        import pandas as pd
+    except ImportError:
+        return rows
+    return pd.DataFrame(rows)
+
+
 def _load_static_data() -> None:
     """
     Load all static reference data at module import.
@@ -169,13 +183,23 @@ class DataSource:
         _ensure_static_data_loaded()
         return _CACHE["global_energy_mix"]
 
-    def get_cloud_emissions_data(self) -> list[dict[str, Any]]:
+    def get_cloud_emissions_rows(self) -> list[dict[str, Any]]:
         """
         Returns Cloud Regions Impact Data, as one dict per row.
         Data is loaded on first access and cached for all tracker instances.
         """
         _ensure_static_data_loaded()
         return _CACHE["cloud_emissions"]
+
+    def get_cloud_emissions_data(self):
+        """
+        Returns Cloud Regions Impact Data.
+
+        Kept for backwards compatibility: this used to return a DataFrame and
+        still does when pandas is installed. pandas is no longer a default
+        dependency, so without it the plain rows are returned instead.
+        """
+        return _as_dataframe(self.get_cloud_emissions_rows())
 
     def find_cloud_region(self, provider: str, region: str) -> dict[str, Any] | None:
         """
@@ -184,7 +208,7 @@ class DataSource:
         return next(
             (
                 row
-                for row in self.get_cloud_emissions_data()
+                for row in self.get_cloud_emissions_rows()
                 if row["provider"] == provider and row["region"] == region
             ),
             None,
@@ -230,13 +254,23 @@ class DataSource:
         _ensure_static_data_loaded()
         return _CACHE["carbon_intensity_per_source"]
 
-    def get_cpu_power_data(self) -> list[dict[str, Any]]:
+    def get_cpu_power_rows(self) -> list[dict[str, Any]]:
         """
         Returns CPU power Data, as one dict per row.
         Data is loaded on first access and cached for all tracker instances.
         """
         _ensure_static_data_loaded()
         return _CACHE["cpu_power"]
+
+    def get_cpu_power_data(self):
+        """
+        Returns CPU power Data.
+
+        Kept for backwards compatibility: this used to return a DataFrame and
+        still does when pandas is installed. pandas is no longer a default
+        dependency, so without it the plain rows are returned instead.
+        """
+        return _as_dataframe(self.get_cpu_power_rows())
 
     def get_nordic_country_energy_mix_data(self) -> Dict:
         """

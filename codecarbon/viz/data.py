@@ -213,7 +213,7 @@ class Data:
             )
         # DataSource returns plain row dicts; the dashboard is the only consumer
         # that still wants a DataFrame, so build one here.
-        cloud_emissions = pd.DataFrame(self._data_source.get_cloud_emissions_data())
+        cloud_emissions = pd.DataFrame(self._data_source.get_cloud_emissions_rows())
         cloud_emissions = cloud_emissions[
             ["provider", "providerName", "region", "impact", "country_name"]
         ]

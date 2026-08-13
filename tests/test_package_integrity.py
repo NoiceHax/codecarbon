@@ -22,7 +22,7 @@ def test_critical_data_files_included():
     assert cloud_path.exists(), f"Cloud emissions file missing: {cloud_path}"
 
     # Test that we can actually read the cloud emissions data
-    cloud_data = ds.get_cloud_emissions_data()
+    cloud_data = ds.get_cloud_emissions_rows()
     assert isinstance(cloud_data, list), "Cloud emissions data should be a list of rows"
     assert cloud_data, "Cloud emissions data should not be empty"
     assert "provider" in cloud_data[0], "BOM must not leak into the first column name"
@@ -50,7 +50,7 @@ def test_cpu_power_data_included():
     assert cpu_power_path.exists(), f"CPU power data missing: {cpu_power_path}"
 
     # Test that we can actually read the CPU power data
-    cpu_power_data = ds.get_cpu_power_data()
+    cpu_power_data = ds.get_cpu_power_rows()
     assert isinstance(cpu_power_data, list), "CPU power data should be a list of rows"
     assert cpu_power_data, "CPU power data should not be empty"
 

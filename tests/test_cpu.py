@@ -399,7 +399,7 @@ class TestTDP(unittest.TestCase):
             mock.patch("codecarbon.input.DataSource") as mock_data_source,
             mock.patch.object(tdp, "_get_matching_cpu", return_value=None),
         ):
-            mock_data_source.return_value.get_cpu_power_data.return_value = (
+            mock_data_source.return_value.get_cpu_power_rows.return_value = (
                 mock.sentinel.cpu_power_df
             )
 
@@ -407,7 +407,7 @@ class TestTDP(unittest.TestCase):
 
     def test_get_matching_cpu(self):
         tdp = TDP()
-        cpu_data = DataSource().get_cpu_power_data()
+        cpu_data = DataSource().get_cpu_power_rows()
 
         # ======= WORKING AS EXPECTED ========
 

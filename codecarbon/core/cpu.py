@@ -924,7 +924,7 @@ class TDP:
     def _get_cpu_power_from_registry(self, cpu_model_raw: str) -> Optional[int]:
         from codecarbon.input import DataSource
 
-        cpu_power_df = DataSource().get_cpu_power_data()
+        cpu_power_df = DataSource().get_cpu_power_rows()
         cpu_matching = self._get_matching_cpu(cpu_model_raw, cpu_power_df)
         if cpu_matching:
             power = self._get_cpu_constant_power(cpu_matching, cpu_power_df)

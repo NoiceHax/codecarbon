@@ -6,6 +6,7 @@ to avoid file I/O on the hot path (start_task/stop_task).
 """
 
 import unittest
+from unittest import mock
 
 
 class TestDataSourceCaching(unittest.TestCase):
@@ -41,11 +42,11 @@ class TestDataSourceCaching(unittest.TestCase):
         self.assertIs(data, _CACHE["global_energy_mix"])
 
     def test_get_cloud_emissions_returns_cached_data(self):
-        """Verify get_cloud_emissions_data() returns cached object."""
+        """Verify get_cloud_emissions_rows() returns cached object."""
         from codecarbon.input import _CACHE, DataSource
 
         ds = DataSource()
-        data = ds.get_cloud_emissions_data()
+        data = ds.get_cloud_emissions_rows()
 
         # Should return the exact same object from cache
         self.assertIs(data, _CACHE["cloud_emissions"])
@@ -61,11 +62,11 @@ class TestDataSourceCaching(unittest.TestCase):
         self.assertIs(data, _CACHE["carbon_intensity_per_source"])
 
     def test_get_cpu_power_returns_cached_data(self):
-        """Verify get_cpu_power_data() returns cached object."""
+        """Verify get_cpu_power_rows() returns cached object."""
         from codecarbon.input import _CACHE, DataSource
 
         ds = DataSource()
-        data = ds.get_cpu_power_data()
+        data = ds.get_cpu_power_rows()
 
         # Should return the exact same object from cache
         self.assertIs(data, _CACHE["cpu_power"])
@@ -95,6 +96,41 @@ class TestDataSourceCaching(unittest.TestCase):
         data2 = ds2.get_global_energy_mix_data()
 
         self.assertIs(data1, data2)
+
+
+class TestDataFrameBackwardsCompatibility(unittest.TestCase):
+    """The public accessors kept their pre-slimming DataFrame return type."""
+
+    def test_public_accessors_return_dataframes_when_pandas_is_installed(self):
+        pd = __import__("pandas")
+        from codecarbon.input import DataSource
+
+        ds = DataSource()
+        for rows, frame in (
+            (ds.get_cloud_emissions_rows(), ds.get_cloud_emissions_data()),
+            (ds.get_cpu_power_rows(), ds.get_cpu_power_data()),
+        ):
+            self.assertIsInstance(rows, list)
+            self.assertIsInstance(rows[0], dict)
+            self.assertIsInstance(frame, pd.DataFrame)
+            self.assertEqual(len(frame), len(rows))
+
+    def test_public_accessors_return_rows_without_pandas(self):
+        import builtins
+
+        from codecarbon.input import DataSource
+
+        real_import = builtins.__import__
+
+        def no_pandas(name, *args, **kwargs):
+            if name == "pandas":
+                raise ImportError("No module named 'pandas'")
+            return real_import(name, *args, **kwargs)
+
+        ds = DataSource()
+        with mock.patch.object(builtins, "__import__", no_pandas):
+            self.assertIs(ds.get_cloud_emissions_data(), ds.get_cloud_emissions_rows())
+            self.assertIs(ds.get_cpu_power_data(), ds.get_cpu_power_rows())
 
 
 if __name__ == "__main__":
