@@ -70,6 +70,67 @@ def _start_cooldown() -> None:
         _cooldown_until = time.monotonic() + _cooldown_duration
 
 
+def location_params(geo: GeoMetadata) -> Dict[str, Any]:
+    """Build the Electricity Maps location query for a geography."""
+    if geo.latitude:
+        return {"lat": geo.latitude, "lon": geo.longitude}
+    return {"countryCode": geo.country_2letter_iso_code}
+
+
+def resolve_token() -> Optional[str]:
+    """Read the Electricity Maps token from the hierarchical configuration.
+
+    Falls back to the deprecated ``co2_signal_api_token`` name.
+    """
+    from codecarbon.core.config import get_hierarchical_config
+
+    config = get_hierarchical_config()
+    return config.get("electricitymaps_api_token") or config.get("co2_signal_api_token")
+
+
+def request(url: str, params: Dict[str, Any], token: str) -> Any:
+    """GET an Electricity Maps endpoint, sharing the failure cooldown.
+
+    Every endpoint goes through here so that a failing API backs off once,
+    process-wide, instead of once per caller.
+
+    Raises:
+        ElectricityMapsAPICooldownError: a previous request failed recently.
+        ElectricityMapsAPIError: the API answered with an error.
+    """
+    with _lock:
+        cooldown_until = _cooldown_until
+    if time.monotonic() < cooldown_until:
+        raise ElectricityMapsAPICooldownError(
+            "Electricity Maps API is in cooldown after a previous failure, "
+            f"retrying in {cooldown_until - time.monotonic():.0f} seconds"
+        )
+
+    try:
+        resp = requests.get(
+            url,
+            params=params,
+            headers={"auth-token": token},
+            timeout=ELECTRICITYMAPS_API_TIMEOUT,
+        )
+        if resp.status_code != 200:
+            body = resp.json()
+            raise ElectricityMapsAPIError(
+                body.get("error") or body.get("message") or resp.text
+            )
+        return resp.json()
+    except Exception:
+        _start_cooldown()
+        raise
+
+
+def clear_cooldown() -> None:
+    """Mark the API as healthy again after a usable response."""
+    global _cooldown_duration
+    with _lock:
+        _cooldown_duration = 0.0
+
+
 def get_carbon_intensity(
     geo: GeoMetadata, electricitymaps_api_token: str = ""
 ) -> float:
@@ -97,12 +158,7 @@ def get_carbon_intensity(
             If the Electricity Maps API request fails, returns an error, or is
             currently in a failure cooldown.
     """
-    global _cooldown_duration
-    params: Dict[str, Any]
-    if geo.latitude:
-        params = {"lat": geo.latitude, "lon": geo.longitude}
-    else:
-        params = {"countryCode": geo.country_2letter_iso_code}
+    params = location_params(geo)
 
     key = _cache_key(params, electricitymaps_api_token)
     cached_carbon_intensity = _get_cached_carbon_intensity(key)
@@ -113,37 +169,15 @@ def get_carbon_intensity(
         )
         return cached_carbon_intensity
 
-    with _lock:
-        cooldown_until = _cooldown_until
-    if time.monotonic() < cooldown_until:
-        raise ElectricityMapsAPICooldownError(
-            "Electricity Maps API is in cooldown after a previous failure, "
-            f"retrying in {cooldown_until - time.monotonic():.0f} seconds"
-        )
-
-    try:
-        resp = requests.get(
-            URL,
-            params=params,
-            headers={"auth-token": electricitymaps_api_token},
-            timeout=ELECTRICITYMAPS_API_TIMEOUT,
-        )
-        if resp.status_code != 200:
-            message = resp.json().get("error") or resp.json().get("message")
-            raise ElectricityMapsAPIError(message)
-
-        # API v3 response structure: carbonIntensity is at the root level
-        response_data = resp.json()
-        carbon_intensity_g_per_kWh = response_data.get("carbonIntensity")
-
-        if carbon_intensity_g_per_kWh is None:
-            raise ElectricityMapsAPIError("No carbonIntensity data in response")
-    except Exception:
+    response_data = request(URL, params, electricitymaps_api_token)
+    # API v3 response structure: carbonIntensity is at the root level
+    carbon_intensity_g_per_kWh = response_data.get("carbonIntensity")
+    if carbon_intensity_g_per_kWh is None:
         _start_cooldown()
-        raise
+        raise ElectricityMapsAPIError("No carbonIntensity data in response")
 
+    clear_cooldown()
     with _lock:
-        _cooldown_duration = 0.0
         _cache[key] = (time.monotonic(), carbon_intensity_g_per_kWh)
     return carbon_intensity_g_per_kWh
 
