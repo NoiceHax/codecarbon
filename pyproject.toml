@@ -114,6 +114,7 @@ carbonboard = [
     "dash",
     "dash_bootstrap_components > 1.0.0",
     "fire",
+    "numpy",
     "pandas>=2.3.3;python_version>='3.14'",
     "pandas;python_version<'3.14'",
 ]
@@ -122,6 +123,7 @@ viz-legacy = [
     "dash",
     "dash_bootstrap_components > 1.0.0",
     "fire",
+    "numpy",
     "pandas>=2.3.3;python_version>='3.14'",
     "pandas;python_version<'3.14'",
 ]

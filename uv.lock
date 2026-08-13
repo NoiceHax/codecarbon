@@ -445,6 +445,9 @@ all = [
     { name = "dash" },
     { name = "dash-bootstrap-components" },
     { name = "fire" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
@@ -452,6 +455,9 @@ carbonboard = [
     { name = "dash" },
     { name = "dash-bootstrap-components" },
     { name = "fire" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
@@ -459,6 +465,9 @@ viz-legacy = [
     { name = "dash" },
     { name = "dash-bootstrap-components" },
     { name = "fire" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
@@ -508,6 +517,8 @@ requires-dist = [
     { name = "fire", marker = "extra == 'carbonboard'" },
     { name = "fire", marker = "extra == 'viz-legacy'" },
     { name = "joserfc", specifier = ">=1.0.0" },
+    { name = "numpy", marker = "extra == 'carbonboard'" },
+    { name = "numpy", marker = "extra == 'viz-legacy'" },
     { name = "nvidia-ml-py" },
     { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'carbonboard'", specifier = ">=2.3.3" },
     { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'viz-legacy'", specifier = ">=2.3.3" },

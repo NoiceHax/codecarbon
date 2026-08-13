@@ -130,8 +130,18 @@ class FileOutput(BaseOutput):
         if not file_exists:
             _write_rows(self.save_file_path, list(new_row), [new_row])
         elif self.on_csv_write == "append":
-            with open(self.save_file_path, "a", newline="") as csv_file:
-                csv.DictWriter(csv_file, fieldnames=list(new_row)).writerow(new_row)
+            # Use the header already on disk as the column order: the row dict's
+            # key order is not guaranteed to match it (has_valid_headers()
+            # compares the two sorted), and trusting it would misalign columns.
+            with open(self.save_file_path, newline="") as csv_file:
+                fieldnames = next(csv.reader(csv_file), None)
+            if not fieldnames:
+                _write_rows(self.save_file_path, list(new_row), [new_row])
+            else:
+                with open(self.save_file_path, "a", newline="") as csv_file:
+                    csv.DictWriter(
+                        csv_file, fieldnames=fieldnames, extrasaction="ignore"
+                    ).writerow(new_row)
         else:
             with open(self.save_file_path, newline="") as csv_file:
                 reader = csv.DictReader(csv_file)
